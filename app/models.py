@@ -8,7 +8,7 @@ class Librarian(Base):
     __tablename__ = "librarians"
     id = Column(Integer, primary_key=True)
     email = Column(String(50), unique=True, nullable=False)
-    password = Column(String(50), nullable=False)
+    password = Column(String(255), nullable=False)
 
 
 class Reader(Base):
