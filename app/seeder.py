@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from .models import Base, Librarian, Reader, Book
+from .models import Base, User, Reader, Book
 from passlib.hash import bcrypt
 import os
 from dotenv import load_dotenv
@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 
 # Sample data
 sample_librarians = [
-    Librarian(email="admin1@example.com", password=bcrypt.hash("password123")),
-    Librarian(email="admin2@example.com", password=bcrypt.hash("pass1234")),
+    User(email="admin1@example.com", password=bcrypt.hash("password123")),
+    User(email="admin2@example.com", password=bcrypt.hash("pass1234")),
 ]
 
 sample_readers = [
