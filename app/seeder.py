@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from .models import Base, Librarian, Reader, Book
 from passlib.hash import bcrypt
@@ -35,14 +35,14 @@ sample_books = [
 ]
 
 
-def seed_data():
+def seed_data_sqlite():
     load_dotenv()
-    db = create_engine(os.getenv("sqlite_url"))
-    LocalSession = sessionmaker(autocommit=False, autoflush=False, bind=db)
+    engine = create_engine(os.getenv("sqlite_url"))
+    LocalSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # Create all tables
-    Base.metadata.create_all(bind=db)
     db = LocalSession()
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
     try:
         # Clear old data
         # db.query(Book).delete()
@@ -60,5 +60,32 @@ def seed_data():
         db.close()
 
 
+def seed_data_postgres():
+
+    load_dotenv()
+    postgres_url = (
+        f"postgresql://{os.getenv('DB_USERNAME')}:{os.getenv('DB_PASSWORD')}@"
+        f"{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}"
+    )
+
+    engine = create_engine(postgres_url)
+    LocalSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    db = LocalSession()
+
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
+    try:
+        # Add new data
+        db.add_all(sample_librarians)
+        db.add_all(sample_readers)
+        db.add_all(sample_books)
+        db.commit()
+        print("data inserted successfully.")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
-    seed_data()
+    # seed_data_sqlite()
+    seed_data_postgres()
