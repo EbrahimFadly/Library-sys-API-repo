@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from .models import Base, User, Reader, Book
+from app.models import Base, User, Reader, Book
 from passlib.hash import bcrypt
 import os
 from dotenv import load_dotenv
