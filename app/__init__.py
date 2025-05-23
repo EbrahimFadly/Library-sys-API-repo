@@ -22,6 +22,8 @@ def createApp():
     app = FastAPI()
 
     from .auth import router as auth_router
+    from .BookManagment import router as book_router
 
     app.include_router(auth_router)
+    app.include_router(book_router)
     return app
