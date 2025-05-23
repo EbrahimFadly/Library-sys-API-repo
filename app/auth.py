@@ -3,8 +3,18 @@ from passlib.hash import bcrypt
 from pydantic import BaseModel
 from app.models import User
 from . import LocalSession
+from jose import jwt
+import os
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+
 
 router = APIRouter()
+
+
+# class Token(BaseModel):
+#     access_token: str
+#     token_type: str
 
 
 class Usermodel(BaseModel):
@@ -12,7 +22,19 @@ class Usermodel(BaseModel):
     password: str
 
 
-@router.post("/sign_up")
+def create_jwt_token(email: str):
+    load_dotenv()
+    expire = datetime.utcnow() + timedelta(
+        minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+    )
+    to_encode = {"sub": email, "exp": expire}
+    encoded_jwt = jwt.encode(
+        to_encode, os.getenv("JWT_SECRET_KEY"), algorithm=os.getenv("ALGORITHM")
+    )
+    return encoded_jwt
+
+
+@router.post("/register")
 def sign_up(user: Usermodel):
     if not user.email or not user.password:
         raise HTTPException(status_code=400, detail="Email and password are required")
@@ -52,11 +74,13 @@ def login(user: Usermodel):
         # Check if user exists
         check = db.query(User).filter_by(email=user.email).first()
         if not check:
-            raise HTTPException(status_code=400, detail="Invalid email or password")
+            return HTTPException(status_code=400, detail="Invalid email or password")
         if not bcrypt.verify(user.password, check.password):
-            raise HTTPException(status_code=400, detail="Invalid email or password")
+            return HTTPException(status_code=400, detail="Invalid email or password")
         # /DB connection
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Internal server error")
-    return {"message": "Login successful"}
+
+    Session_token = create_jwt_token(user.email)
+    return {Session_token, "bearer"}
