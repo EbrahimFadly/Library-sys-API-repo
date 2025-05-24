@@ -16,6 +16,11 @@ class bookModel(BaseModel):
     copies_available: int = 1
 
 
+class BookDeletionConfirmation(BaseModel):
+    book_id: int
+    confirmation: bool
+
+
 @router.get("/books")
 def get_books(token: str = Depends(oauth2_scheme)):
     verify_jwt_token(token)
@@ -51,11 +56,13 @@ def add_book(book: bookModel, token: str = Depends(oauth2_scheme)):
     return {"message": "Book added successfully", "book": book.title}
 
 
-@router.delete("/books/{book_id}")
-def delete_book(book_id: int, token: str = Depends(oauth2_scheme)):
+@router.delete("/books")
+def delete_book(book: BookDeletionConfirmation, token: str = Depends(oauth2_scheme)):
     verify_jwt_token(token)
+    if not book.confirmation:
+        return {"message": "Deletion not confirmed"}
     db = LocalSession()
-    book = db.query(Book).filter(Book.id == book_id).first()
+    book = db.query(Book).filter(Book.id == BookDeletionConfirmation.book_id).first()
     if not book:
         db.close()
         return {"message": "Book not found"}
