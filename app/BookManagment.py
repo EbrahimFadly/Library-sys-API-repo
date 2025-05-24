@@ -116,3 +116,35 @@ def borrow_book(book: BorrowBookModel, token: str = Depends(oauth2_scheme)):
         db.close()
 
     return {"message": "Book borrowed successfully", "book": book_to_borrow.title}
+
+
+@router.post("/return")
+def ReturnBook(book: BorrowBookModel, token: str = Depends(oauth2_scheme)):
+    verify_jwt_token(token)
+    db = LocalSession()
+
+    Book_to_return = (
+        db.query(BorrowedBook)
+        .filter(
+            BorrowedBook.book_id == book.book_id,
+            BorrowedBook.reader_id == book.reader_id,
+        )
+        .first()
+    )
+    if not Book_to_return:
+        db.close()
+        return {"message": "Borrowed book not found or already returned"}
+    db.delete(Book_to_return)
+    db.query(Book).filter(Book.id == book.book_id).update(
+        {"copies_available": Book.copies_available + 1}
+    )
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to return book: {e}")
+        raise e
+    finally:
+        db.close()
+
+    return {"message": "Book returned successfully"}
