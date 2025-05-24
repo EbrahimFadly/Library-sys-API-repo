@@ -49,3 +49,23 @@ def add_book(book: bookModel, token: str = Depends(oauth2_scheme)):
     finally:
         db.close()
     return {"message": "Book added successfully", "book": book.title}
+
+
+@router.delete("/books/{book_id}")
+def delete_book(book_id: int, token: str = Depends(oauth2_scheme)):
+    verify_jwt_token(token)
+    db = LocalSession()
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        db.close()
+        return {"message": "Book not found"}
+    try:
+        db.delete(book)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to delete book: {e}")
+        raise e
+    finally:
+        db.close()
+    return {"message": "Book deleted successfully", "book": book.title}
