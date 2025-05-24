@@ -3,9 +3,15 @@ from .auth import oauth2_scheme
 from app.auth import verify_jwt_token
 from .models import Reader
 from . import LocalSession
+from pydantic import BaseModel
 
 
 router = APIRouter()
+
+
+class ReaderModel(BaseModel):
+    name: str
+    email: str
 
 
 @router.get("/readers")
@@ -21,3 +27,21 @@ def get_readers(token: str = Depends(oauth2_scheme)):
         db.rollback()
         raise e
     return readers
+
+
+@router.post("/readers")
+def add_reader(reader: ReaderModel, token: str = Depends(oauth2_scheme)):
+    verify_jwt_token(token)
+    db = LocalSession()
+    new_reader = Reader(name=reader.name, email=reader.email)
+    try:
+        db.add(new_reader)
+        db.commit()
+        db.refresh(new_reader)
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to add reader: {e}")
+        raise e
+    finally:
+        db.close()
+    return {"message": "Reader added successfully", "reader": reader.name}
