@@ -23,7 +23,10 @@ def createApp():
 
     from .auth import router as auth_router
     from .BookManagment import router as book_router
+    from .reader_manager import router as reader_router
 
     app.include_router(auth_router)
     app.include_router(book_router)
+    app.include_router(reader_router)
+
     return app
