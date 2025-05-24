@@ -6,15 +6,14 @@ from . import LocalSession
 from jose import jwt
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from fastapi.security import OAuth2PasswordBearer
 
+load_dotenv()
 
 router = APIRouter()
 
-
-# class Token(BaseModel):
-#     access_token: str
-#     token_type: str
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
 class Usermodel(BaseModel):
@@ -23,15 +22,30 @@ class Usermodel(BaseModel):
 
 
 def create_jwt_token(email: str):
-    load_dotenv()
-    expire = datetime.utcnow() + timedelta(
-        minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
     )
     to_encode = {"sub": email, "exp": expire}
     encoded_jwt = jwt.encode(
         to_encode, os.getenv("JWT_SECRET_KEY"), algorithm=os.getenv("ALGORITHM")
     )
     return encoded_jwt
+
+
+def verify_jwt_token(token: str):
+    try:
+        payload = jwt.decode(
+            token, os.getenv("JWT_SECRET_KEY"), algorithms=os.getenv("ALGORITHM")
+        )
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return email
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/register")
@@ -74,13 +88,13 @@ def login(user: Usermodel):
         # Check if user exists
         check = db.query(User).filter_by(email=user.email).first()
         if not check:
-            return HTTPException(status_code=400, detail="Invalid email or password")
+            raise HTTPException(status_code=400, detail="Invalid email or password")
         if not bcrypt.verify(user.password, check.password):
-            return HTTPException(status_code=400, detail="Invalid email or password")
+            raise HTTPException(status_code=400, detail="Invalid email or password")
         # /DB connection
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
     Session_token = create_jwt_token(user.email)
-    return {Session_token, "bearer"}
+    return {"access_token": Session_token, "token_type": "bearer"}
