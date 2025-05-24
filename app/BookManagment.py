@@ -1,7 +1,8 @@
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from . import LocalSession
-from .models import Book
+from .models import Book, BorrowedBook
 from .auth import verify_jwt_token, oauth2_scheme
 
 
@@ -19,6 +20,11 @@ class bookModel(BaseModel):
 class BookDeletionModel(BaseModel):
     book_id: int
     confirmation: bool
+
+
+class BorrowBookModel(BaseModel):
+    book_id: int
+    reader_id: int
 
 
 @router.get("/books")
@@ -76,3 +82,37 @@ def delete_book(book_toDEL: BookDeletionModel, token: str = Depends(oauth2_schem
     finally:
         db.close()
     return {"message": "Book deleted successfully", "book": book.title}
+
+
+@router.post("/borrow")
+def borrow_book(book: BorrowBookModel, token: str = Depends(oauth2_scheme)):
+    verify_jwt_token(token)
+    db = LocalSession()
+    book_to_borrow = db.query(Book).filter(Book.id == book.book_id).first()
+    if not book_to_borrow:
+        db.close()
+        return {"message": "Book not found"}
+    if book_to_borrow.copies_available <= 0:
+        db.close()
+        return {"message": "No copies available for borrowing"}
+
+    book_to_borrow.copies_available -= 1
+    db.add(
+        BorrowedBook(
+            book_id=book.book_id,
+            reader_id=book.reader_id,
+            borrow_date=datetime.now(),
+            return_date=datetime.now() + timedelta(days=14),
+        )
+    )
+    try:
+        db.commit()
+        db.refresh(book_to_borrow)
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to borrow book: {e}")
+        raise e
+    finally:
+        db.close()
+
+    return {"message": "Book borrowed successfully", "book": book_to_borrow.title}
