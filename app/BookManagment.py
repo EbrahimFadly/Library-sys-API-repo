@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import DateTime
 from . import LocalSession
 from .models import Book, BorrowedBook
 from .auth import verify_jwt_token, oauth2_scheme
+from sqlalchemy.orm import Session
 
 
 router = APIRouter()
@@ -39,8 +39,7 @@ class PostModelBorrowBook(BaseModel):
 
 
 @router.get("/books")
-def get_books():
-    db = LocalSession()
+def get_books(db: Session = Depends(LocalSession)):
     books = db.query(Book).all()
     db.close()
     if not books:
@@ -49,7 +48,11 @@ def get_books():
 
 
 @router.post("/books")
-def add_book(book: PostModelbook, token: str = Depends(oauth2_scheme)):
+def add_book(
+    book: PostModelbook,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(LocalSession),
+):
     verify_jwt_token(token)
     new_book = Book(
         title=book.title,
@@ -58,7 +61,6 @@ def add_book(book: PostModelbook, token: str = Depends(oauth2_scheme)):
         isbn=book.isbn,
         copies_available=book.copies_available,  # Default to 1 if not provided
     )
-    db = LocalSession()
     try:
         db.add(new_book)
         db.commit()
@@ -73,17 +75,26 @@ def add_book(book: PostModelbook, token: str = Depends(oauth2_scheme)):
 
 
 @router.delete("/books")
-def delete_book(book_toDEL: DeleteModelBook, token: str = Depends(oauth2_scheme)):
+def delete_book(
+    book_toDEL: DeleteModelBook,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(LocalSession),
+):
     verify_jwt_token(token)
     if not book_toDEL.confirmation:
         return {"message": "Deletion not confirmed"}
-    db = LocalSession()
     book = db.query(Book).filter(Book.id == book_toDEL.book_id).first()
+    book_borrowed = (
+        db.query(BorrowedBook)
+        .filter(BorrowedBook.book_id == book_toDEL.book_id)
+        .first()
+    )
     if not book:
         db.close()
         return {"message": "Book not found"}
     try:
         db.delete(book)
+        db.delete(book_borrowed) if book_borrowed else None
         db.commit()
     except Exception as e:
         db.rollback()
@@ -95,9 +106,12 @@ def delete_book(book_toDEL: DeleteModelBook, token: str = Depends(oauth2_scheme)
 
 
 @router.post("/borrow")
-def borrow_book(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
+def borrow_book(
+    book: PostModelBorrowBook,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(LocalSession),
+):
     verify_jwt_token(token)
-    db = LocalSession()
     book_to_borrow = db.query(Book).filter(Book.id == book.book_id).first()
     if not book_to_borrow:
         db.close()
@@ -140,9 +154,12 @@ def borrow_book(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
 
 
 @router.post("/return")
-def ReturnBook(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
+def ReturnBook(
+    book: PostModelBorrowBook,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(LocalSession),
+):
     verify_jwt_token(token)
-    db = LocalSession()
 
     Book_to_return = (
         db.query(BorrowedBook)
@@ -174,10 +191,13 @@ def ReturnBook(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
     return {"message": "Book returned successfully"}
 
 
-@router.get("/readers/{reader_id}/borrowed", response_model=List[GetModelBorrowedBook])
-def get_borrowed_books(reader_id: int, token: str = Depends(oauth2_scheme)):
+@router.get("/readers/{reader_id}/borrowed")
+def get_borrowed_books(
+    reader_id: int,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(LocalSession),
+):
     verify_jwt_token(token)
-    db = LocalSession()
     try:
         borrowed_books = (
             db.query(BorrowedBook)

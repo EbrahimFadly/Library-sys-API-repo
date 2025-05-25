@@ -15,7 +15,15 @@ load_dotenv()
 sqlite_url = os.getenv("sqlite_url")
 db = create_engine(sqlite_url, echo=True)
 Base = declarative_base()
-LocalSession = sessionmaker(autocommit=False, autoflush=False, bind=db)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db)
+
+
+def LocalSession():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def createApp():

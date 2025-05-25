@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from passlib.hash import bcrypt
 from pydantic import BaseModel
 from app.models import User
@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
 load_dotenv()
 
@@ -49,12 +50,10 @@ def verify_jwt_token(token: str):
 
 
 @router.post("/register")
-def sign_up(user: Usermodel):
+def sign_up(user: Usermodel, db: Session = Depends(LocalSession)):
     if not user.email or not user.password:
         raise HTTPException(status_code=400, detail="Email and password are required")
     try:
-        # DB connection
-        db = LocalSession()
         # Check if user already exists
         check = db.query(User).filter_by(email=user.email).first()
         if check:
@@ -79,12 +78,10 @@ def sign_up(user: Usermodel):
 
 
 @router.post("/login")
-def login(user: Usermodel):
+def login(user: Usermodel, db: Session = Depends(LocalSession)):
     if not user.email or not user.password:
         raise HTTPException(status_code=400, detail="Email and password are required")
     try:
-        # DB connection
-        db = LocalSession()
         # Check if user exists
         check = db.query(User).filter_by(email=user.email).first()
         if not check:
