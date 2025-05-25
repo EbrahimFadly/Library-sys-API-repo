@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends
-from .auth import oauth2_scheme
 from app.auth import verify_jwt_token
 from .models import Reader
 from . import LocalSession
@@ -17,9 +16,8 @@ class ReaderModel(BaseModel):
 
 @router.get("/readers")
 def get_readers(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(LocalSession)
+    email: str = Depends(verify_jwt_token), db: Session = Depends(LocalSession)
 ):
-    verify_jwt_token(token)
     try:
         readers = db.query(Reader).all()
         db.close()
@@ -34,10 +32,9 @@ def get_readers(
 @router.post("/readers")
 def add_reader(
     reader: ReaderModel,
-    token: str = Depends(oauth2_scheme),
+    email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    verify_jwt_token(token)
     new_reader = Reader(name=reader.name, email=reader.email)
     try:
         db.add(new_reader)

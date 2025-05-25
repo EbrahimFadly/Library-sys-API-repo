@@ -33,7 +33,9 @@ def create_jwt_token(email: str):
     return encoded_jwt
 
 
-def verify_jwt_token(token: str):
+def verify_jwt_token(token: str = Depends(oauth2_scheme)):
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         payload = jwt.decode(
             token, os.getenv("JWT_SECRET_KEY"), algorithms=os.getenv("ALGORITHM")

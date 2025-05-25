@@ -1,10 +1,9 @@
-from datetime import datetime, timedelta
-from typing import List
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from . import LocalSession
 from .models import Book, BorrowedBook
-from .auth import verify_jwt_token, oauth2_scheme
+from .auth import verify_jwt_token
 from sqlalchemy.orm import Session
 
 
@@ -50,10 +49,9 @@ def get_books(db: Session = Depends(LocalSession)):
 @router.post("/books")
 def add_book(
     book: PostModelbook,
-    token: str = Depends(oauth2_scheme),
+    email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    verify_jwt_token(token)
     new_book = Book(
         title=book.title,
         author=book.author,
@@ -77,10 +75,9 @@ def add_book(
 @router.delete("/books")
 def delete_book(
     book_toDEL: DeleteModelBook,
-    token: str = Depends(oauth2_scheme),
+    email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    verify_jwt_token(token)
     if not book_toDEL.confirmation:
         return {"message": "Deletion not confirmed"}
     book = db.query(Book).filter(Book.id == book_toDEL.book_id).first()
@@ -108,10 +105,9 @@ def delete_book(
 @router.post("/borrow")
 def borrow_book(
     book: PostModelBorrowBook,
-    token: str = Depends(oauth2_scheme),
+    email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    verify_jwt_token(token)
     book_to_borrow = db.query(Book).filter(Book.id == book.book_id).first()
     if not book_to_borrow:
         db.close()
@@ -156,11 +152,9 @@ def borrow_book(
 @router.post("/return")
 def ReturnBook(
     book: PostModelBorrowBook,
-    token: str = Depends(oauth2_scheme),
+    email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    verify_jwt_token(token)
-
     Book_to_return = (
         db.query(BorrowedBook)
         .filter(
@@ -194,10 +188,9 @@ def ReturnBook(
 @router.get("/readers/{reader_id}/borrowed")
 def get_borrowed_books(
     reader_id: int,
-    token: str = Depends(oauth2_scheme),
+    email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    verify_jwt_token(token)
     try:
         borrowed_books = (
             db.query(BorrowedBook)
