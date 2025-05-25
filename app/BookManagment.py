@@ -39,8 +39,7 @@ class PostModelBorrowBook(BaseModel):
 
 
 @router.get("/books")
-def get_books(token: str = Depends(oauth2_scheme)):
-    verify_jwt_token(token)
+def get_books():
     db = LocalSession()
     books = db.query(Book).all()
     db.close()
