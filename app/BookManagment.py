@@ -150,6 +150,7 @@ def ReturnBook(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
         .filter(
             BorrowedBook.book_id == book.book_id,
             BorrowedBook.reader_id == book.reader_id,
+            BorrowedBook.return_date == None,
         )
         .first()
     )
