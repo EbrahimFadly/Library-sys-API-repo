@@ -38,7 +38,7 @@ class BorrowedBook(Base):
     book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
     reader_id = Column(Integer, ForeignKey("readers.id"), nullable=False)
     borrow_date = Column(DateTime, default=datetime.date)
-    return_date = Column(DateTime, nullable=True)
+    return_date = Column(DateTime, nullable=True, default=None)
 
     book = relationship("Book", back_populates="borrowed_books")
     reader = relationship("Reader", back_populates="borrowed_books")
