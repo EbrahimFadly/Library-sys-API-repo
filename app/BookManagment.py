@@ -26,7 +26,6 @@ class GetModelBorrowedBook(BaseModel):
     isbn: str
     copies_available: int
     borrow_date: datetime
-    return_date: datetime
 
 
 class DeleteModelBook(BaseModel):
@@ -107,6 +106,18 @@ def borrow_book(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
     if book_to_borrow.copies_available <= 0:
         db.close()
         return {"message": "No copies available for borrowing"}
+    borrowed_books_count = len(
+        db.query(BorrowedBook)
+        .filter(
+            BorrowedBook.reader_id == book.reader_id, BorrowedBook.return_date == None
+        )
+        .all()
+    )
+    if borrowed_books_count >= 3:
+        db.close()
+        return {
+            "message": "Reader has already borrowed the maximum number of books (3)"
+        }
 
     book_to_borrow.copies_available -= 1
     db.add(
@@ -114,7 +125,6 @@ def borrow_book(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
             book_id=book.book_id,
             reader_id=book.reader_id,
             borrow_date=datetime.now(),
-            return_date=datetime.now() + timedelta(days=14),
         )
     )
     try:
@@ -146,9 +156,11 @@ def ReturnBook(book: PostModelBorrowBook, token: str = Depends(oauth2_scheme)):
     if not Book_to_return:
         db.close()
         return {"message": "Borrowed book not found or already returned"}
-    db.delete(Book_to_return)
     db.query(Book).filter(Book.id == book.book_id).update(
         {"copies_available": Book.copies_available + 1}
+    )
+    db.query(BorrowedBook).filter(BorrowedBook.id == Book_to_return.id).update(
+        {"return_date": datetime.now()}
     )
     try:
         db.commit()
@@ -170,7 +182,9 @@ def get_borrowed_books(reader_id: int, token: str = Depends(oauth2_scheme)):
         borrowed_books = (
             db.query(BorrowedBook)
             .join(Book)
-            .filter(BorrowedBook.reader_id == reader_id)
+            .filter(
+                BorrowedBook.reader_id == reader_id, BorrowedBook.return_date == None
+            )
             .all()
         )
         if not borrowed_books:
@@ -189,7 +203,6 @@ def get_borrowed_books(reader_id: int, token: str = Depends(oauth2_scheme)):
                 isbn=book.book.isbn,
                 copies_available=book.book.copies_available,
                 borrow_date=book.borrow_date,
-                return_date=book.return_date,
             )
             for book in borrowed_books
         ]
