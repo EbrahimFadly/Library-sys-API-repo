@@ -27,11 +27,6 @@ class GetModelBorrowedBook(BaseModel):
     borrow_date: datetime
 
 
-class DeleteModelBook(BaseModel):
-    book_id: int
-    confirmation: bool
-
-
 class PostModelBorrowBook(BaseModel):
     book_id: int
     reader_id: int
@@ -72,19 +67,15 @@ def add_book(
     return {"message": "Book added successfully", "book": book.title}
 
 
-@router.delete("/books")
+@router.delete("/books/{book_id}")
 def delete_book(
-    book_toDEL: DeleteModelBook,
+    book_id: int,
     email: str = Depends(verify_jwt_token),
     db: Session = Depends(LocalSession),
 ):
-    if not book_toDEL.confirmation:
-        return {"message": "Deletion not confirmed"}
-    book = db.query(Book).filter(Book.id == book_toDEL.book_id).first()
+    book = db.query(Book).filter(Book.id == book_id).first()
     book_borrowed = (
-        db.query(BorrowedBook)
-        .filter(BorrowedBook.book_id == book_toDEL.book_id)
-        .first()
+        db.query(BorrowedBook).filter(BorrowedBook.book_id == book_id).first()
     )
     if not book:
         db.close()
