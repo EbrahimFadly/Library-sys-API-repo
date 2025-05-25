@@ -29,6 +29,9 @@ class Book(Base):
     isbn = Column(String(50), unique=True)
     copies_available = Column(Integer, nullable=False, default=1)
 
+    # added description field with migration
+    description = Column(String, nullable=True)
+
     borrowed_books = relationship("BorrowedBook", back_populates="book")
 
 
