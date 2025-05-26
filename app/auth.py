@@ -76,17 +76,12 @@ def sign_up(user: Usermodel, db: Session = Depends(LocalSession)):
 def login(user: Usermodel, db: Session = Depends(LocalSession)):
     if not user.email or not user.password:
         raise HTTPException(status_code=400, detail="Email and password are required")
-    try:
         # Check if user exists
-        check = db.query(User).filter_by(email=user.email).first()
-        if not check:
-            raise HTTPException(status_code=400, detail="Invalid email or password")
-        if not bcrypt.verify(user.password, check.password):
-            raise HTTPException(status_code=400, detail="Invalid email or password")
-        # /DB connection
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+    check = db.query(User).filter_by(email=user.email).first()
+    if not check:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+    if not bcrypt.verify(user.password, check.password):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
 
     Session_token = create_jwt_token(user.email)
     return {"access_token": Session_token, "token_type": "bearer"}
