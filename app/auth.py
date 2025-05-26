@@ -55,27 +55,20 @@ def verify_jwt_token(token: str = Depends(oauth2_scheme)):
 def sign_up(user: Usermodel, db: Session = Depends(LocalSession)):
     if not user.email or not user.password:
         raise HTTPException(status_code=400, detail="Email and password are required")
+    # Check if user already exists
+    check = db.query(User).filter_by(email=user.email).first()
+    if check:
+        raise HTTPException(status_code=400, detail="Email already exists")
+    new_user = User(email=user.email, password=bcrypt.hash(user.password))
     try:
-        # Check if user already exists
-        check = db.query(User).filter_by(email=user.email).first()
-        if check:
-            raise HTTPException(status_code=400, detail="Email already exists")
-        new_user = User(email=user.email, password=bcrypt.hash(user.password))
-        try:
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
-
-        # /DB connection
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
     except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-    tmp = Usermodel(email=new_user.email, password=new_user.password)
+        db.rollback()
+        raise e
+    finally:
+        db.close()
     return {"message": "User created successfully"}
 
 
